@@ -1,43 +1,83 @@
-node{
-  def mavenHome = tool name: 'maven3.8.4'
-  stage('1Clone'){
-    git branch: 'feature', url: 'https://github.com/sikwitit1/web-app'
+pipeline{
+  agent any 
+  tools{
+    maven "maven3.8.4"
   }
-  stage('2MavenBuild'){
-    sh "${mavenHome}/bin/mvn clean package"
-  }
-    stage('3CodeQuality'){
-    sh "${mavenHome}/bin/mvn sonar:sonar"
-  }
-    stage('4UploadArtifacts'){
-    sh "${mavenHome}/bin/mvn deploy"
-  }
-      stage('5.Deploy2dev'){
-      deploy adapters: [tomcat9(credentialsId: 'tomcat-credentials', path: '', url: 'http://172.31.14.229:8888/')], contextPath: null, war: 'target/*war'    
-      http://172.31.14.229:8888/web-app/
-  
-      stage('6.Deploy2uat'){
-        sshagent(['agent2']) {
-}  
+  stages{
+    stage('1.clone'){
+      steps{
+            sh "echo clonning the latest version of the code" 
+            git branch: 'feature', url: 'https://github.com/sikwitit1/web-app
+            sh "echo clonning successful"
       }
-     stage('7.approval'){
-      timeout(time:8, unit:'HOURS'){
-        input message: 'Please approve deployment to Production'
+    }
+    stage('2.Build'){
+      steps{
+        sh "echo validation, compilation, testing and package"
+        sh "echo testing successful and ready to package"
+        sh "mvn clean package"
       }
-     }
-   stage('8.Deploy2prod'){
+    }
+    stage('3.Quality'){
+      steps{
+        sh "echo performing code quality analysis"
+        sh "echo code quality successful and ready to upload"
+        sh "mvn sonar:sonar"
+      }
+    }
+  stage('4.uploadArtifacts'){
+      steps{
+        sh "mvn deploy"
+      }
+    }
+  stage('5.Deploy2UAT'){
+      steps{
+        sh "echo DEPLOYING TO UAT for further testing and validation"
         sshagent(['agentcredentials']) {
         sh "scp -o StrictHostKeyChecking=no target/*.war ec2-user@172.31.14.229:/opt/tomcat9/webapps/apps.war"
-        
-}      
       }
-      stage('9.EmailAlerts'){
-    emailext body: '''Hi
+    }
+  } 
+    stage('6.Deploy2Prod'){
+      steps{
+        sh "echo DEPLOYING application TO Production"
+        timeout(time:8, unit:'HOURS'){
+        input message: 'Please approve deployment to Production'
+      }
+        sshagent(['agentcredentials']) {
+        sh "scp -o StrictHostKeyChecking=no target/*.war ec2-user@172.31.14.229:/opt/tomcat9/webapps/apps.war"
+      }
+    }
+  }
+  post{
+    always{
+      mail bcc: 'ja4prezz@gmail.com', body: '''Success,
 
-     Build status for boa app
+The build was great.
 
-     Regards
-     Chris''', subject: 'Project status', to: 'boa@gmail.com'
+Regards
+Jayden A  
++6475257937''', cc: 'ja4prezz@gmail.com', from: '', replyTo: '', subject: 'sucess', to: 'ja4prezz@gmail.com'
+    }
+    success{
+      mail bcc: 'ja4prezz@gmail.com', body: '''Success,
+
+The build was great.
+
+Regards
+Jayden A  
++6475257937''', cc: 'ja4prezz@gmail.com', from: '', replyTo: '', subject: 'sucess', to: 'ja4prezz@gmail.com'
+    }
+    failure{
+      mail bcc: 'ja4prezz@gmail.com', body: '''Failed,
+
+The build Failed.
+
+Regards
+Jayden A 
++6475257937''', cc: 'ja4prezz@gmail.com', from: '', replyTo: '', subject: 'Failed', to: 'ja4prezz@gmail.com'
+    }
+  }
+
 }
-}
-}
+
